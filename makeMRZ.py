@@ -56,7 +56,8 @@ try:
   num_resolutions = int(sys.argv[res_index + 1])
 except ValueError:
   num_resolutions = DEFAULT_NUM_RESOLUTIONS
-# number of unique mrz strings to generte
+# number of unique mrz strings to generate
+# set to 0 to geneate a new string for each color and angle 
 try:
   unique_index = sys.argv.index("-u")
   num_unique_strings = int(sys.argv[unique_index + 1])
@@ -194,8 +195,14 @@ def generate_mrz(lines, deg, bg_color, sizes):
       img = img.resize((new_width, new_height))
 
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+if num_unique_strings == 0:
+  num_unique_strings = 1
+  new_string_each_time = True
+else:
+  new_string_each_time = False
 for _ in range(num_unique_strings):
-  lines = [generate_line(), generate_line()]
+  if not new_string_each_time:
+    lines = [generate_line(), generate_line()]
   for d in range(max_angle + 1):
     for sign in [-1, 1]:
       if d == 0  and sign == -1:
@@ -203,11 +210,17 @@ for _ in range(num_unique_strings):
       deg = d * sign
       colors = colorGenerator(num_colors, BEIGE)
       for color in colors:
+        if new_string_each_time:
+          lines = [generate_line(), generate_line()]
         generate_mrz(lines, deg, color, num_resolutions)
       grays = colorGenerator(num_grays, GRAY)
       for gray in grays:
+        if new_string_each_time:
+          lines = [generate_line(), generate_line()]
         generate_mrz(lines, deg, gray, num_resolutions)
       if white:
+        if new_string_each_time:
+          lines = [generate_line(), generate_line()]
         generate_mrz(lines, deg, WHITE, num_resolutions)
 
 if write_classes_file:
