@@ -2,6 +2,7 @@ import pickle
 import json
 from statistics import mean
 import math
+from text import MRZ
 
 MRZ_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<<<<"
 
@@ -38,26 +39,33 @@ def is_nearby(a, b, max_dist):
   return distance(a, b) <= max_dist
 
 def closest_index(a, items):
-  return sorted([(i, distance(a, item)) for i, item in enumerate(items)], key=lambda x: x[1])[0][0]
+  if len(items) > 0:
+    return sorted([(i, distance(a, item)) for i, item in enumerate(items)], key=lambda x: x[1])[0][0]
+  else:
+    return None
 
 def mrz_char(index):
   return MRZ_CHARS[int(index)] if index >= 0 else ' '
 
 lines = []
-current = [] 
-while len(untested) > 0:
-  if len(current) == 0:
+current = []
+done = False
+while not done:
+  if len(untested) > 0 and len(current) == 0:
     current.append(untested[0])
     del untested[0]
   else:
     index = closest_index(current[-1], untested)
-    if is_nearby(current[-1], untested[index], 1.8 * avg_w):
-      if is_nearby(current[-1], untested[index], 0.25 * avg_w):
+    if index is not None and is_nearby(current[-1], untested[index], 1.8 * avg_w):
+      if is_nearby(current[-1], untested[index], 0.4 * avg_w):
         # too close!
         if current[-1]["conf"] > untested[index]["conf"]:
+          current.append(untested[index])
+          current[-1]["suppressed"] = True
           del untested[index]
         else:
-          current[-1] = untested[index]
+          current[-1]["suppressed"] = True
+          current.append(untested[index])
           del untested[index]
       else: 
         current.append(untested[index])
@@ -67,7 +75,12 @@ while len(untested) > 0:
       if conf > 0.7:
         lines.append(current)
       current = []
+      if index is None:
+        done = True
 
+# stitch lines together if the last character of the first line
+# is within a couple characters of the first charcater of the
+# second line.
 done = False
 while not done:
   changed = False
@@ -86,9 +99,13 @@ while not done:
     done = True 
 
 sort_lines = lambda line: line[0]["y"] if orientation in [0, 2] else line[0]["x"]
-lines = sorted([ line for line in lines if len(line) > 20 ], key=sort_lines, reverse=orientation in [2, 3])
+lines = sorted([ line for line in lines ], key=sort_lines, reverse=orientation in [2, 3])
 for line in lines:
   for ch in line:
     print(f"{mrz_char(ch['val'])} {json.dumps(ch)}")
+mrz = []
 for line in lines:
-  print(''.join([ mrz_char(ch["val"]) for ch in line ]))
+  mrz.append(''.join([ mrz_char(ch["val"]) for ch in line if "suppressed" not in ch]))
+  print(mrz[-1])
+mrz_parser = MRZ(mrz)
+print(json.dumps(mrz_parser.to_dict(), indent=2))

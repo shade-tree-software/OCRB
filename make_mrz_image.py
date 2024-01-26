@@ -9,7 +9,7 @@ import pathlib
 
 MRZ_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<<<<"
 MRZ_MAX_CHARS = 44
-FONT_HEIGHT = 18 # pixels
+FONT_HEIGHT = 36 # pixels
 MRZ_CHAR_HEIGHT = 5 # height of MRZ in chars
 DEFAULT_OUTPUT_DIR = "output"
 DEFAULT_MAX_ANGLE = 0 # degrees
@@ -130,7 +130,7 @@ def generate_line():
     chars.append(c)
   return ''.join(chars) + "<<<<<"
 
-def generate_mrz(lines, deg, bg_color, size=1.0):
+def generate_mrz(lines, deg, bg_color, scale=1.0):
   (_, _, cw, ch) = ocrb.getbbox("X")
   mrz_height = MRZ_CHAR_HEIGHT * ch
   img_size = (cw * (MRZ_MAX_CHARS + 2), mrz_height)
@@ -148,16 +148,16 @@ def generate_mrz(lines, deg, bg_color, size=1.0):
 
   # write output
   bg_hex = f"{bg_color[0]:02X}{bg_color[1]:02X}{bg_color[2]:02X}"
-  text_path = os.path.join(output_dir, f"{lines[0][:8]}_{deg}_{size}_{bg_hex}.txt")
+  text_path = os.path.join(output_dir, f"{lines[0][:8]}_{deg}_{scale:.2f}_{bg_hex}.txt")
   with open(text_path, "wt") as f:
     for char_info in line1_info:
       f.write(f"{char_info}\n")
     for char_info in line2_info:
       f.write(f"{char_info}\n")
-  img_path = os.path.join(output_dir, f"{lines[0][:8]}_{deg}_{size}_{bg_hex}.jpg")
-  if size != 1.0:
-    new_width = round(img.size[0] * size)
-    new_height = round(img.size[1] * size)
+  img_path = os.path.join(output_dir, f"{lines[0][:8]}_{deg}_{scale:.2f}_{bg_hex}.jpg")
+  if scale != 1.0:
+    new_width = round(img.size[0] * scale)
+    new_height = round(img.size[1] * scale)
     img = img.resize((new_width, new_height))
   img.save(img_path)
 
@@ -172,8 +172,8 @@ for _ in range(num_images):
   else:
     color = WHITE
   lines = [generate_line(), generate_line()]
-  size = random.uniform(1.0, 0.6)
-  generate_mrz(lines, deg, color, size)
+  scale = random.uniform(1.0, 0.25)
+  generate_mrz(lines, deg, color, scale)
 
 if write_classes_file:
   classes_path = os.path.join(output_dir, "classes.txt")
