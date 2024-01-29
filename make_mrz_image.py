@@ -7,7 +7,7 @@ import random
 import os
 import pathlib
 
-MRZ_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<<<<"
+MRZ_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
 MRZ_MAX_CHARS = 44
 FONT_HEIGHT = 36 # pixels
 MRZ_CHAR_HEIGHT = 5 # height of MRZ in chars
@@ -17,6 +17,8 @@ DEFAULT_NUM_IMAGES = 1
 BEIGE = (158, 128, 98)
 GRAY = (128, 128, 128)
 WHITE = (255, 255, 255)
+IMAGES_DIR = "images"
+LABELS_DIR = "labels"
 
 ocrb = ImageFont.truetype('/nis_home/awhamil/.local/share/fonts/OcrB2.ttf', FONT_HEIGHT)
 
@@ -26,6 +28,8 @@ try:
   output_dir = sys.argv[dir_index + 1]
 except ValueError:
   output_dir = DEFAULT_OUTPUT_DIR
+images_path = os.path.join(output_dir, IMAGES_DIR)
+labels_path = os.path.join(output_dir, LABELS_DIR)
 # number of images to generate
 try:
   image_count_index = sys.argv.index("-n")
@@ -101,8 +105,8 @@ def draw_line(text, deg, xf, yf, cw, ch, img):
     img2 = img2.rotate(deg, expand=1, resample=Image.BICUBIC)
     img.paste(img2, (x, y), img2)
     draw = ImageDraw.Draw(img)
-    x2 = x + img2.size[0] - 1
-    y2 = y + img2.size[1] - 1
+    x2 = x + img2.size[0]
+    y2 = y + img2.size[1]
     if show_boxes:
       draw.rectangle([x, y, x2, y2], outline="red")
     x_pct = ((x2 + x) / 2) / img.size[0]
@@ -110,13 +114,12 @@ def draw_line(text, deg, xf, yf, cw, ch, img):
     w_pct = (x2 - x) / img.size[0]
     h_pct = (y2 - y) / img.size[1]
     c_idx = MRZ_CHARS.index(c)
-    if c == '<':
-      if deg >= 45 and deg < 135:
-        c_idx += 1
-      elif deg >= 135 and deg < 225:
-        c_idx += 2
-      elif deg >= 225 and deg < 315:
-        c_idx += 3
+    if deg >= 45 and deg < 135:
+      c_idx += len(MRZ_CHARS)
+    elif deg >= 135 and deg < 225:
+      c_idx += 2 * len(MRZ_CHARS)
+    elif deg >= 225 and deg < 315:
+      c_idx += 3 * len(MRZ_CHARS)
     chars_info.append(f"{c_idx} {x_pct} {y_pct} {w_pct} {h_pct}")
     xf = xf + xt
     yf = yf - yt
@@ -148,20 +151,21 @@ def generate_mrz(lines, deg, bg_color, scale=1.0):
 
   # write output
   bg_hex = f"{bg_color[0]:02X}{bg_color[1]:02X}{bg_color[2]:02X}"
-  text_path = os.path.join(output_dir, f"{lines[0][:8]}_{deg}_{scale:.2f}_{bg_hex}.txt")
+  text_path = os.path.join(labels_path, f"{lines[0][:8]}_{deg}_{scale:.2f}_{bg_hex}.txt")
   with open(text_path, "wt") as f:
     for char_info in line1_info:
       f.write(f"{char_info}\n")
     for char_info in line2_info:
       f.write(f"{char_info}\n")
-  img_path = os.path.join(output_dir, f"{lines[0][:8]}_{deg}_{scale:.2f}_{bg_hex}.jpg")
+  img_path = os.path.join(images_path, f"{lines[0][:8]}_{deg}_{scale:.2f}_{bg_hex}.jpg")
   if scale != 1.0:
     new_width = round(img.size[0] * scale)
     new_height = round(img.size[1] * scale)
     img = img.resize((new_width, new_height))
   img.save(img_path)
 
-pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+pathlib.Path(labels_path).mkdir(parents=True, exist_ok=True)
+pathlib.Path(images_path).mkdir(parents=True, exist_ok=True)
 for _ in range(num_images):
   deg = random.randint(0, 359)
   color_type = random.randrange(3)
@@ -176,8 +180,14 @@ for _ in range(num_images):
   generate_mrz(lines, deg, color, scale)
 
 if write_classes_file:
-  classes_path = os.path.join(output_dir, "classes.txt")
+  classes_path = os.path.join(labels_path, "classes.txt")
   if not os.path.exists(classes_path):
     with open(classes_path, "wt") as f:
       for char in MRZ_CHARS:
-        f.write(f"{char}\n")
+        f.write(f"{char}_lr\n")
+      for char in MRZ_CHARS:
+        f.write(f"{char}_bt\n")
+      for char in MRZ_CHARS:
+        f.write(f"{char}_rl\n")
+      for char in MRZ_CHARS:
+        f.write(f"{char}_tb\n")
